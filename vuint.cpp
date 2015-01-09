@@ -5,12 +5,12 @@
 #include <iterator>
 #include <vector>
 
-
 namespace vio {
 
 	class vuint {
 		typedef std::uint32_t u32;
 		typedef std::uint64_t u64;
+		typedef std::int64_t i64;
 		typedef std::vector<u32> vu32;
 		typedef vu32::iterator ivu32;
 		typedef vu32::const_iterator civu32;
@@ -44,15 +44,16 @@ namespace vio {
 
 		vuint operator +(const vuint &with) const {
 			if (data.size() < with.data.size())
-				return vuint(plusVU32(with.data, data));
+				return std::move(vuint(plusVU32(with.data, data)));
 			else
-				return vuint(plusVU32(data, with.data));
+				return std::move(vuint(plusVU32(data, with.data)));
 		}
 	
 		vuint operator -(const vuint &with) const {
-			return vuint(minusVU32(data, with.data));
+			return std::move(vuint(minusVU32(data, with.data)));
 		}
 
+	private:
 		static u64 increaseVU32i(ivu32 begin1, ivu32 end1, civu32 begin2, civu32 end2, const u64 carry = 0) {
 			u64 tmp = carry;
 			ivu32 i;
@@ -71,12 +72,12 @@ namespace vio {
 
 		}
 
-		static u64 decreaseVU32i(ivu32 begin1, ivu32 end1, civu32 begin2, civu32 end2, const u64 carry = 0) {
-			u64 tmp = carry;
+		static i64 decreaseVU32i(ivu32 begin1, ivu32 end1, civu32 begin2, civu32 end2, const i64 carry = 0) {
+			i64 tmp = carry;
 			ivu32 i;
 			civu32 j;
 			for (i = begin1, j = begin2; j != end2; ++i, ++j) {
-				tmp += (u64) *i - *j;
+				tmp += (i64) *i - *j;
 				*i = (u32) tmp;
 				tmp >>= 32;
 			}
@@ -89,11 +90,11 @@ namespace vio {
 
 		}
 		static inline vu32 plusVU32(const vu32 &vu1, const vu32 &vu2) {
-			return plusVU32i(vu1.cbegin(), vu1.cend(), vu2.cbegin(), vu2.cend());
+			return std::move(plusVU32i(vu1.cbegin(), vu1.cend(), vu2.cbegin(), vu2.cend()));
 		}
 
 		static inline vu32 minusVU32(const vu32 &vu1, const vu32 &vu2) {
-			return minusVU32i(vu1.cbegin(), vu2.cend(), vu2.cbegin(), vu2.cend());
+			return std::move(minusVU32i(vu1.cbegin(), vu1.cend(), vu2.cbegin(), vu2.cend()));
 		}
 
 		static vu32 plusVU32i(civu32 begin1, civu32 end1, civu32 begin2, civu32 end2) {
@@ -127,11 +128,11 @@ namespace vio {
 			civu32 split1(begin1), split2(begin2);
 			std::advance(split1, dis);
 			std::advance(split2, dis);
-			vu32 v1 = plusVU32i(begin1, split1, split1, end1);
-			vu32 v2 = plusVU32i(begin2, split2, split2, end2);
-			vu32 va = multiplyVU32i(begin1, split1, begin2, split2);
-			vu32 vb = multiplyVU32i(v1.begin(), v1.end(), v2.begin(), v2.end());
-			vu32 vc = multiplyVU32i(split1, end1, split2, end2);
+			vu32 v1 = std::move(plusVU32i(begin1, split1, split1, end1));
+			vu32 v2 = std::move(plusVU32i(begin2, split2, split2, end2));
+			vu32 va = std::move(multiplyVU32i(begin1, split1, begin2, split2));
+			vu32 vb = std::move(multiplyVU32i(v1.begin(), v1.end(), v2.begin(), v2.end()));
+			vu32 vc = std::move(multiplyVU32i(split1, end1, split2, end2));
 			decreaseVU32i(vb.begin(), vb.end(), va.begin(), va.end());
 			decreaseVU32i(vb.begin(), vb.end(), vc.begin(), vc.end());
 			ivu32 o = res.begin();
@@ -171,6 +172,10 @@ namespace vio {
 			return 0;
 		}
 
+		static void wrap(vu32 & v) {
+			while (!v.back())
+			v.pop_back();
+		}
 	private:
 		vu32 data;
 	};
@@ -178,8 +183,8 @@ namespace vio {
 
 int main() {
 	typedef vio::vuint vt;
-	vt a(3, 1);
-	vt b(2, 2);
+	vt a(2, 1);
+	vt b(1, 2);
 	a.print();
 	b.print();
 	vt c = a + b;
@@ -188,3 +193,4 @@ int main() {
 	d.print();
 	return 0;
 }
+
