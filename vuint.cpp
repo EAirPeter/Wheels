@@ -22,7 +22,7 @@ namespace vio {
 		static void print(const vu32 &v) {
 			for (vu32::const_reverse_iterator i = v.crbegin(); i != v.crend(); ++i)
 				printf("%08x", *i);
-			puts("");
+			puts("\npn");
 		}
 
 	public:
@@ -39,22 +39,27 @@ namespace vio {
 		}
 
 		bool operator <(const vuint &with) const {
-			return compareVU32(data, with.data) < 0;
+			return cmpVU32(data, with.data) < 0;
 		}
 
 		vuint operator +(const vuint &with) const {
 			if (data.size() < with.data.size())
-				return std::move(vuint(plusVU32(with.data, data)));
+				return vuint(addVU32(with.data, data));
 			else
-				return std::move(vuint(plusVU32(data, with.data)));
+				return vuint(addVU32(data, with.data));
 		}
 	
 		vuint operator -(const vuint &with) const {
-			return std::move(vuint(minusVU32(data, with.data)));
+			return vuint(subVU32(data, with.data));
+		
+		}
+
+		vuint operator *(const vuint &with) const {
+			return vuint(mulVU32(data, with.data));
 		}
 
 	private:
-		static u64 increaseVU32i(ivu32 begin1, ivu32 end1, civu32 begin2, civu32 end2, const u64 carry = 0) {
+		static u64 incVU32i(ivu32 begin1, ivu32 end1, civu32 begin2, civu32 end2, const u64 carry = 0) {
 			u64 tmp = carry;
 			ivu32 i;
 			civu32 j;
@@ -72,7 +77,7 @@ namespace vio {
 
 		}
 
-		static i64 decreaseVU32i(ivu32 begin1, ivu32 end1, civu32 begin2, civu32 end2, const i64 carry = 0) {
+		static i64 decVU32i(ivu32 begin1, ivu32 end1, civu32 begin2, civu32 end2, const i64 carry = 0) {
 			i64 tmp = carry;
 			ivu32 i;
 			civu32 j;
@@ -89,61 +94,85 @@ namespace vio {
 			return tmp;
 
 		}
-		static inline vu32 plusVU32(const vu32 &vu1, const vu32 &vu2) {
-			return std::move(plusVU32i(vu1.cbegin(), vu1.cend(), vu2.cbegin(), vu2.cend()));
+		static inline vu32 addVU32(const vu32 &vu1, const vu32 &vu2) {
+			return std::move(addVU32i(vu1.cbegin(), vu1.cend(), vu2.cbegin(), vu2.cend()));
 		}
 
-		static inline vu32 minusVU32(const vu32 &vu1, const vu32 &vu2) {
-			return std::move(minusVU32i(vu1.cbegin(), vu1.cend(), vu2.cbegin(), vu2.cend()));
+		static inline vu32 subVU32(const vu32 &vu1, const vu32 &vu2) {
+			return wrap(subVU32i(vu1.cbegin(), vu1.cend(), vu2.cbegin(), vu2.cend()));
 		}
 
-		static vu32 plusVU32i(civu32 begin1, civu32 end1, civu32 begin2, civu32 end2) {
+		static inline vu32 mulVU32(const vu32 &vu1, const vu32 &vu2) {
+			return mulVU32i(vu1.cbegin(), vu1.cend(), vu2.cbegin(), vu2.cend());
+		}
+
+		static vu32 addVU32i(civu32 begin1, civu32 end1, civu32 begin2, civu32 end2, const u64 carry = 0) {
 			vu32 res(begin1, end1);
-			u64 tmp = increaseVU32i(res.begin(), res.end(), begin2, end2);
+			u64 tmp = incVU32i(res.begin(), res.end(), begin2, end2, carry);
 			if (tmp)
 				res.push_back((u32) tmp);
-			return res;
+			return std::move(res);
 		}
 
-		static vu32 minusVU32i(civu32 begin1, civu32 end1, civu32 begin2, civu32 end2) {
+		static vu32 subVU32i(civu32 begin1, civu32 end1, civu32 begin2, civu32 end2, const i64 carry = 0) {
 			vu32 res(begin1, end1);
-			u64 tmp = decreaseVU32i(res.begin(), res.end(), begin2, end2);
+			u64 tmp = decVU32i(res.begin(), res.end(), begin2, end2, carry);
 			if (tmp)
 				throw "Unsupported";
 			return res;
 		}
 
 
-		static vu32 multiplyVU32i(civu32 begin1, civu32 end1, civu32 begin2, civu32 end2) {
+		static vu32 mulVU32i(civu32 begin1, civu32 end1, civu32 begin2, civu32 end2) {
 			siz dis1 = std::distance(begin1, end1);
 			siz dis2 = std::distance(begin2, end2);
 			if (dis1 < 1 || dis2 < 1)
 				return vu32(0);
 			if (dis1 == 1)
-				return multiplyVU32iu(begin2, end2, *begin1);
+				return mulVU32iu(begin2, end2, *begin1);
 			if (dis2 == 1)
-				return multiplyVU32iu(begin1, end1, *begin2);
+				return mulVU32iu(begin1, end1, *begin2);
 			siz dis = (dis1 > dis2 ? dis1 : dis2) >> 1;
-			vu32 res(dis1 + dis - 1);
+			vu32 res(dis1 + dis2 - 1);
 			civu32 split1(begin1), split2(begin2);
 			std::advance(split1, dis);
 			std::advance(split2, dis);
-			vu32 v1 = std::move(plusVU32i(begin1, split1, split1, end1));
-			vu32 v2 = std::move(plusVU32i(begin2, split2, split2, end2));
-			vu32 va = std::move(multiplyVU32i(begin1, split1, begin2, split2));
-			vu32 vb = std::move(multiplyVU32i(v1.begin(), v1.end(), v2.begin(), v2.end()));
-			vu32 vc = std::move(multiplyVU32i(split1, end1, split2, end2));
-			decreaseVU32i(vb.begin(), vb.end(), va.begin(), va.end());
-			decreaseVU32i(vb.begin(), vb.end(), vc.begin(), vc.end());
+			const vu32 &&v1 = addVU32i(begin1, split1, split1, end1);
+			printf("v1: ");print(v1);
+			const vu32 &&v2 = addVU32i(begin2, split2, split2, end2);
+			printf("v2: ");print(v2);
+			puts("calcva");
+			const vu32 &&va = mulVU32i(begin1, split1, begin2, split2);
+			printf("va: ");print(va);
+			puts("calcvb");
+			vu32 vb = mulVU32i(v1.begin(), v1.end(), v2.begin(), v2.end());
+			printf("vb: ");print(vb);
+			puts("calcvc");
+			const vu32 &&vc = mulVU32i(split1, end1, split2, end2);
+			printf("vc: ");print(vc);
+			puts("decvc1");
+			decVU32i(vb.begin(), vb.end(), va.begin(), va.end());
+			puts("deccvc2");
+			decVU32i(vb.begin(), vb.end(), vc.begin(), vc.end());
+			printf("vb: ");print(vb);
 			ivu32 o = res.begin();
-			std::move(va.begin(), va.end(), o);
+			incVU32i(o, res.end(), va.begin(), va.end());
+			printf("res1: ");print(res);
 			std::advance(o, dis);
-			u64 tmp = increaseVU32i(o, res.end(), vb.begin(), vb.end());
+			u64 tmp = incVU32i(o, res.end(), vb.begin(), vb.end());
+			printf("res2: ");print(res);
 			std::advance(o, dis);
-			increaseVU32i(o, res.end(), vc.begin(), vc.end(), tmp);
+			tmp = incVU32i(o, res.end(), vc.begin(), vc.end(), tmp);
+			printf("res3: ");print(res);
+			while (tmp) {
+				res.push_back((u32) tmp);
+				tmp >>= 32;
+			}
+			printf("res: ");print(res);
+			return res;
 		}
 
-		static vu32 multiplyVU32iu(civu32 begin, civu32 end, const u32 val) {
+		static vu32 mulVU32iu(civu32 begin, civu32 end, const u32 val) {
 			vu32 res(std::distance(begin, end));
 			u64 tmp = 0;
 			civu32 i;
@@ -162,7 +191,7 @@ namespace vio {
 			return res;
 		}
 
-		static int compareVU32(const vu32 &op1, const vu32 &op2) {
+		static int cmpVU32(const vu32 &op1, const vu32 &op2) {
 			int res = op1.size() - op2.size();
 			if (res)
 				return res;
@@ -172,25 +201,33 @@ namespace vio {
 			return 0;
 		}
 
-		static void wrap(vu32 & v) {
+		static vu32 wrap(vu32 v) {
+			return wrapVU32(v);
+		}
+
+		static vu32 &wrapVU32(vu32 & v) {
 			while (!v.back())
-			v.pop_back();
+				v.pop_back();
+			return v;
 		}
 	private:
 		vu32 data;
 	};
 }
 
+typedef vio::vuint vt;
+vt a(2, 0xfafdfdfd);
+vt b(2, 0x324895ee);
+
 int main() {
-	typedef vio::vuint vt;
-	vt a(2, 1);
-	vt b(1, 2);
-	a.print();
-	b.print();
+	printf("a: ");a.print();
+	printf("b: ");b.print();
 	vt c = a + b;
 	vt d = a - b;
-	c.print();
-	d.print();
+	vt e = a * b;
+	printf("a + b: ");c.print();
+	printf("a - b: ");d.print();
+	printf("a * b: ");e.print();
 	return 0;
 }
 
