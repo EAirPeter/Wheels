@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -16,14 +17,22 @@ namespace vio {
 		typedef vu32::const_iterator civu32;
 		typedef vu32::size_type siz;
 	public:
-		void print() {
-			print(data);
+		// for DEBUG
+		void print(const char *const title) {
+			print(title, data);
 		}
-		static void print(const vu32 &v) {
-			for (vu32::const_reverse_iterator i = v.crbegin(); i != v.crend(); ++i)
+		static void print(const char *const t, const vu32 &v) {
+			printf("%s: 0x", t);
+			if (v.empty()) {
+				puts("0");
+				return;
+			}
+			printf("%x", v.back());
+			for (vu32::const_reverse_iterator i = v.crbegin() + 1; i != v.crend(); ++i)
 				printf("%08x", *i);
-			puts("\npn");
+			puts("");
 		}
+#		define CHECK12 //assert(std::distance(begin1, end1) >= std::distance(begin2, end2))
 
 	public:
 		vuint() : data() {
@@ -34,7 +43,7 @@ namespace vio {
 
 		vuint(const vu32 &_vec) : data(_vec) {
 		}
-		
+
 		vuint(const siz _rep, const u32 val) : data(_rep, val) {
 		}
 
@@ -48,18 +57,23 @@ namespace vio {
 			else
 				return vuint(addVU32(data, with.data));
 		}
-	
+
 		vuint operator -(const vuint &with) const {
 			return vuint(subVU32(data, with.data));
-		
+
 		}
 
 		vuint operator *(const vuint &with) const {
 			return vuint(mulVU32(data, with.data));
 		}
 
+		vuint mul(const vuint &with) const {
+			return vuint(mulVU32r(data.cbegin(), data.cend(), with.data.cbegin(), with.data.cend()));
+		}
+
 	private:
 		static u64 incVU32i(ivu32 begin1, ivu32 end1, civu32 begin2, civu32 end2, const u64 carry = 0) {
+			CHECK12;
 			u64 tmp = carry;
 			ivu32 i;
 			civu32 j;
@@ -78,6 +92,7 @@ namespace vio {
 		}
 
 		static i64 decVU32i(ivu32 begin1, ivu32 end1, civu32 begin2, civu32 end2, const i64 carry = 0) {
+			CHECK12;
 			i64 tmp = carry;
 			ivu32 i;
 			civu32 j;
@@ -95,7 +110,7 @@ namespace vio {
 
 		}
 		static inline vu32 addVU32(const vu32 &vu1, const vu32 &vu2) {
-			return std::move(addVU32i(vu1.cbegin(), vu1.cend(), vu2.cbegin(), vu2.cend()));
+			return addVU32i(vu1.cbegin(), vu1.cend(), vu2.cbegin(), vu2.cend());
 		}
 
 		static inline vu32 subVU32(const vu32 &vu1, const vu32 &vu2) {
@@ -107,14 +122,16 @@ namespace vio {
 		}
 
 		static vu32 addVU32i(civu32 begin1, civu32 end1, civu32 begin2, civu32 end2, const u64 carry = 0) {
+			CHECK12;
 			vu32 res(begin1, end1);
 			u64 tmp = incVU32i(res.begin(), res.end(), begin2, end2, carry);
 			if (tmp)
 				res.push_back((u32) tmp);
-			return std::move(res);
+			return res;
 		}
 
 		static vu32 subVU32i(civu32 begin1, civu32 end1, civu32 begin2, civu32 end2, const i64 carry = 0) {
+			CHECK12;
 			vu32 res(begin1, end1);
 			u64 tmp = decVU32i(res.begin(), res.end(), begin2, end2, carry);
 			if (tmp)
@@ -122,6 +139,25 @@ namespace vio {
 			return res;
 		}
 
+		static vu32 mulVU32r(civu32 begin1, civu32 end1, civu32 begin2, civu32 end2) {
+			siz dis1 = end1 - begin1; //std::distance(begin1, end1);
+			siz dis2 = end2 - begin2; //std::distance(begin2, end2);
+			u32 *a = begin1._Ptr;
+			u32 *b = begin2._Ptr;
+			vu32 r(dis1 + dis2 + 2);
+			u64 tmp = 0;
+			for (int i = 0; i < dis1; ++i)
+				for (int j = 0; j < dis2; ++j) {
+					tmp = (u64) a[i] * b[j];
+					for (int k = i + j; tmp; ++k) {
+						tmp += r[k];
+						r[k] = (u32) tmp;
+						tmp >>= 32;
+					}
+				}
+			wrapVU32(r);
+			return r;
+		}
 
 		static vu32 mulVU32i(civu32 begin1, civu32 end1, civu32 begin2, civu32 end2) {
 			siz dis1 = std::distance(begin1, end1);
@@ -132,48 +168,40 @@ namespace vio {
 				return mulVU32iu(begin2, end2, *begin1);
 			if (dis2 == 1)
 				return mulVU32iu(begin1, end1, *begin2);
-			siz dis = (dis1 > dis2 ? dis1 : dis2) >> 1;
-			vu32 res(dis1 + dis2 - 1);
+			if (dis1 < 80 || dis2 < 80)
+				return mulVU32r(begin1, end1, begin2, end2);
+			siz dis = ((dis1 > dis2 ? dis1 : dis2) + 1) >> 1;
 			civu32 split1(begin1), split2(begin2);
-			std::advance(split1, dis);
-			std::advance(split2, dis);
-			const vu32 &&v1 = addVU32i(begin1, split1, split1, end1);
-			printf("v1: ");print(v1);
-			const vu32 &&v2 = addVU32i(begin2, split2, split2, end2);
-			printf("v2: ");print(v2);
-			puts("calcva");
-			const vu32 &&va = mulVU32i(begin1, split1, begin2, split2);
-			printf("va: ");print(va);
-			puts("calcvb");
+			split1 += dis > dis1 ? dis1 : dis; //std::advance(split1, dis > dis1 ? dis1 : dis);
+			split2 += dis > dis2 ? dis2 : dis; //std::advance(split2, dis > dis2 ? dis2 : dis);
+			const vu32 &v1 = addVU32i(begin1, split1, split1, end1);
+			const vu32 &v2 = addVU32i(begin2, split2, split2, end2);
+			const vu32 &va = mulVU32i(begin1, split1, begin2, split2);
 			vu32 vb = mulVU32i(v1.begin(), v1.end(), v2.begin(), v2.end());
-			printf("vb: ");print(vb);
-			puts("calcvc");
-			const vu32 &&vc = mulVU32i(split1, end1, split2, end2);
-			printf("vc: ");print(vc);
-			puts("decvc1");
+			const vu32 &vc = mulVU32i(split1, end1, split2, end2);
 			decVU32i(vb.begin(), vb.end(), va.begin(), va.end());
-			puts("deccvc2");
 			decVU32i(vb.begin(), vb.end(), vc.begin(), vc.end());
-			printf("vb: ");print(vb);
+			siz resz = va.size();
+			if (resz < vb.size() + dis)
+				resz = vb.size() + dis;
+			if (resz < vc.size() + (dis << 1))
+				resz = vc.size() + (dis << 1);
+			vu32 res(resz);
 			ivu32 o = res.begin();
 			incVU32i(o, res.end(), va.begin(), va.end());
-			printf("res1: ");print(res);
-			std::advance(o, dis);
+			o += dis;//std::advance(o, dis);
 			u64 tmp = incVU32i(o, res.end(), vb.begin(), vb.end());
-			printf("res2: ");print(res);
-			std::advance(o, dis);
+			o += dis;//std::advance(o, dis);
 			tmp = incVU32i(o, res.end(), vc.begin(), vc.end(), tmp);
-			printf("res3: ");print(res);
 			while (tmp) {
 				res.push_back((u32) tmp);
 				tmp >>= 32;
 			}
-			printf("res: ");print(res);
-			return res;
+			return wrap(res);
 		}
 
 		static vu32 mulVU32iu(civu32 begin, civu32 end, const u32 val) {
-			vu32 res(std::distance(begin, end));
+			vu32 res(end - begin);//(std::distance(begin, end));
 			u64 tmp = 0;
 			civu32 i;
 			ivu32 k;
@@ -192,7 +220,7 @@ namespace vio {
 		}
 
 		static int cmpVU32(const vu32 &op1, const vu32 &op2) {
-			int res = op1.size() - op2.size();
+			int res = (int) op1.size() - (int) op2.size();
 			if (res)
 				return res;
 			for (vu32::const_reverse_iterator i = op1.crbegin(), j = op2.crbegin(); i != op1.crend(); ++i, ++j)
@@ -215,19 +243,43 @@ namespace vio {
 	};
 }
 
+#define TEST_TINT
+#ifdef TEST_TINT
+
+#include "tint.h"
+typedef tint tt;
+#else
+typedef vio::vuint tt;
+#endif
 typedef vio::vuint vt;
-vt a(2, 0xfafdfdfd);
-vt b(2, 0x324895ee);
+
+#include <ctime>
+
+#define DECI(z, a, b) vt v##z(a, b); tt t##z(a, b);
 
 int main() {
-	printf("a: ");a.print();
-	printf("b: ");b.print();
-	vt c = a + b;
-	vt d = a - b;
-	vt e = a * b;
-	printf("a + b: ");c.print();
-	printf("a - b: ");d.print();
-	printf("a * b: ");e.print();
+	DECI(a, 400001, 0xA0EA01F0);
+	DECI(b, 400000, 0x2DEEEF1E);
+	//vt a(3, 0x10000100);
+	//vt b(2, 0xFDEEEFFE);
+	//a.print("a");
+	//b.print("b");
+	//vt c = a + b;
+	//vt d = a - b;
+	std::time_t t1 = clock();
+	vt ve = va * vb;
+	std::time_t t2 = clock();
+	//vt te = va.mul(vb);
+	//tt te = ta * tb;
+	std::time_t t3 = clock();
+	//c.print("a + b");
+	//d.print("a - b");
+	//e.print("a * b");
+	std::printf("v: %ld ms\n", t2 - t1);
+	//ve.print("v: a * b");
+	//std::printf("t: %ld ms\n", t3 - t2);
+	//te.print("t: a * b");
+	while (true);
 	return 0;
 }
 
