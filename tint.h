@@ -38,10 +38,10 @@ public:
 		const vu32 &b = with.data;
 		vu32 r(a.size() + b.size());
 		u64 tmp;
-		for (int i = 0; i < a.size(); ++i)
-			for (int j = 0; j < b.size(); ++j) {
+		for (size_t i = 0; i < a.size(); ++i)
+			for (size_t j = 0; j < b.size(); ++j) {
 				tmp = (u64) a[i] * b[j];
-				for (int k = i + j; tmp; ++k) {
+				for (size_t k = i + j; tmp; ++k) {
 					tmp += r[k];
 					r[k] = (u32) tmp;
 					tmp >>= 32;
