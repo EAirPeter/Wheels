@@ -72,7 +72,7 @@ namespace vio {
 
 
 		vuint mul(const vuint &with) const {
-			return vuint(mulVU32ir(data.cbegin(), data.cend(), with.data.cbegin(), with.data.cend()));
+			return vuint(MulHelper<civu32, civu32>(data.begin(), data.size(), with.data.begin(), with.data.size()).mul());
 		}
 
 	private:
@@ -285,9 +285,132 @@ namespace vio {
 			}
 
 			vu32 mul() {
-				siz zax = (((Z1 > Z2 ? Z1 : Z2) + 1) >> 1) * 6;
+				siz zax = ((((Z1 > Z2 ? Z1 : Z2) + 1) >> 1) << 3) + 3;
 				vu32 V(zax);
-				V.resize(Z1 + Z2);
+				siz z = mul(V.begin(), H1, Z1, H2, Z2);
+				V.resize(z);
+				while (!V.back())
+					V.pop_back();
+				return V;
+			}
+
+			//for DEBUG
+			template<typename it>
+			void print(const char * t, it h, siz z) {
+				printf("%s: ", t);
+				for (siz i = 0; i < z; ++i)
+					printf("%08x", *(h++));
+				puts("");
+			}
+
+		private:
+			template<typename out, typename in1, typename in2>
+			siz mul(out o, in1 h1, siz z1, in2 h2, siz z2) {
+				if (!z1 || !z2)
+					return 0;
+				if (z1 == 1)
+					return mul(o, h2, z2, *h1);
+				if (z2 == 1)
+					return mul(o, h1, z1, *h2);
+				siz s = ((z1 > z2 ? z1 : z2) + 1) >> 1;
+				siz i1 = s > z1 ? z1 : s;
+				siz i2 = s > z2 ? z2 : s;
+				siz s1 = mul(o, h1, i1, h2, i2);
+				siz s2 = mul(o + (s << 1), h1, z1 - i1, h2, z2 - i2);
+				siz s3 = add(o + s * 6 + 2, h1, i1, h1 + i1, z1 - i1);
+				siz s4 = add(o + s * 7 + 3, h2, i2, h2 + i2, z2 - i2);
+				siz s5 = mul(o + (s << 2), o + s * 6 + 2, s3, o + s * 7 + 3, s4);
+				print("o+4s", o + (s << 2), s5);
+				print("o", o, s1);
+				s5 = sub(o + (s << 2), o + (s << 2), s5, o, s1);
+				print("o+4s", o + (s << 2), s5);
+				print("o+s", o + s, s2);
+				s5 = sub(o + (s << 2), o + (s << 2), s5, o + (s << 1), s2);
+				print("o+4s", o + (s << 2), s5);
+				std::fill(o + s1, o + (s << 1), 0);
+				std::fill(o + s2 + (s << 1), o + (s << 2), 0);
+				siz s6 = add(o + s, o + (s << 2), s5);
+				return s6;
+			}
+			
+			template<typename out, typename it>
+			siz mul(out o, it h, siz z, u32 v) {
+				if (!v)
+					return 0;
+				u64 tmp = 0;
+				out w = o;
+				for (siz i = 0; i < z; ++i) {
+					tmp += *(h++) * v;
+					*(o++) = (u32) tmp;
+					tmp >>= 32;
+				}
+				while (tmp) {
+					*(o++) = (u32) tmp;
+					tmp >>= 32;
+				}
+				return o - w;
+			}
+			
+			//ASSUME: memory cleared
+			template<typename out, typename it>
+			siz add(out o, it h, siz z) {
+				u64 tmp = 0;
+				out w = o;
+				for (siz i = 0; i < z; ++i) {
+					tmp += *o + *(h++);
+					*(o++) = (u32) tmp;
+					tmp >>= 32;
+				}
+				while (tmp) {
+					*(o++) = (u32) tmp;
+					tmp >>= 32;
+				}
+				return o - w;
+			}
+			
+			//ASSUME: z1 >= z2
+			template<typename out, typename in1, typename in2>
+			siz add(out o, in1 h1, siz z1, in2 h2, siz z2) {
+				assert(z1 >= z2);
+				u64 tmp = 0;
+				out w = o;
+				for (siz i = 0; i < z2; ++i) {
+					tmp += (u64) *(h1++) + *(h2++);
+					*(o++) = (u32) tmp;
+					tmp >>= 32;
+				}
+				for (siz i = z2; i < z1; ++i) {
+					tmp += *(h1++);
+					*(o++) = (u32) tmp;
+					tmp >>= 32;
+				}
+				while (tmp) {
+					*(o++) = (u32) tmp;
+					tmp >>= 32;
+				}
+				return o - w;
+			}
+			
+			//ASSUME: h1[0, z1) >= h2[0, z2)
+			template<typename out, typename in1, typename in2>
+			siz sub(out o, in1 h1, siz z1, in2 h2, siz z2) {
+				assert(z1 >= z2);
+				i64 tmp = 0;
+				out w = o;
+				for (siz i = 0; i < z2; ++i) {
+					tmp += (i64) *(h1++) - *(h2++);
+					*(o++) = (u32) tmp;
+					tmp >>= 32;
+				}
+				for (siz i = z2; i < z1; ++i) {
+					tmp += (i64) *(h1++);
+					*(o++) = (u32) tmp;
+					tmp >>= 32;
+				}
+				assert(!tmp);
+				while (o != w && !*(o - 1))
+					--o;
+				return o - w;
 			}
 
 		private:
@@ -322,9 +445,9 @@ int main() {
 }
 */
 
-int xmain() {
-	DECI(a, 40001, 0xA0EA01F0);
-	DECI(b, 40000, 0x2DEEEF1E);
+int main() {
+	DECI(a, 41, 0xA0EA01F0);
+	DECI(b, 40, 0x2DEEEF1E);
 	//vt a(3, 0x10000100);
 	//vt b(2, 0xFDEEEFFE);
 	//a.print("a");
