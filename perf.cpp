@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <cstdio>
 #include <ctime>
 #include <iterator>
 #include <string>
@@ -11,14 +12,16 @@ const size_t MAX_SIZE = 1000000;
 const size_t SORT_SIZE = 1000000;
 const size_t MUL_SIZE = 10000;
 const size_t RAC_TIMES = 400;
-const size_t CON_TIMES = 1000;
+const size_t CON_TIMES = 100;
 
 typedef int type;
 
-vector<type> VEC(MAX_SIZE, 0);
+vector<type> VEC(MAX_SIZE);
 array<type, MAX_SIZE> ARR;
-basic_string<type> STR(MAX_SIZE, 0);
+basic_string<type> STR(MAX_SIZE, type());
 type RAW[MAX_SIZE];
+
+FILE *tmp;
 
 inline double dur(const clock_t fr, const clock_t to) {
 	return (double) (to - fr) / CLOCKS_PER_SEC;
@@ -29,6 +32,10 @@ inline double dur() {
 	double ret = (double) (clock() - prev) / CLOCKS_PER_SEC;
 	prev = clock();
 	return ret;
+}
+
+inline void rx(const type &u) {
+	fprintf(tmp, "%d", (int) u);
 }
 
 void p(const char *const cat, const char *const inf, const double tim) {
@@ -55,22 +62,26 @@ void tcon() {
 	for (size_t i = 0; i < CON_TIMES; ++i) {
 		type *r = new type[MAX_SIZE];
 		copy(RAW, RAW + MAX_SIZE, r);
+		rx(r[0]);
 		delete[] r;
 	}
 	double tr = dur();
 	for (size_t i = 0; i < CON_TIMES; ++i) {
 		vector<type> *v = new vector<type>(RAW, RAW + MAX_SIZE);
+		rx(*v->begin());
 		delete v;
 	}
 	double tv = dur();
 	for (size_t i = 0; i < CON_TIMES; ++i) {
 		array<type, MAX_SIZE> *a = new array<type, MAX_SIZE>();
 		copy(RAW, RAW + MAX_SIZE, a->data());
+		rx(*a->begin());
 		delete a;
 	}
 	double ta = dur();
 	for (size_t i = 0; i < CON_TIMES; ++i) {
 		basic_string<type> *s = new basic_string<type>(RAW, RAW + MAX_SIZE);
+		rx(*s->begin());
 		delete s;
 	}
 	double ts = dur();
@@ -97,21 +108,33 @@ void tsort() {
 }
 
 template<typename it>
-void tmul(it fr, it to) {
-	for (it i = fr; i!= to; ++i)
-		for (it j = fr; j != to; ++j)
-			*i = *j = *i * *j;
+void tmul(it in, it out) {
+	for (size_t i = 0; i < MUL_SIZE; ++i)
+		for (size_t j = 0; j < MUL_SIZE; ++j)
+			out[i + j] += in[i] * in[j];
 }
 
 void tmul() {
 	dur();
-	tmul(RAW, RAW + MUL_SIZE);
+	type *r = new type[MUL_SIZE << 1] {};
+	tmul(RAW, r);
+	rx(r[0]);
+	delete[] r;
 	double tr = dur();
-	tmul(VEC.begin(), VEC.begin() + MUL_SIZE);
+	vector<type> *v = new vector<type>(MUL_SIZE << 1);
+	tmul(VEC.begin(), v->begin());
+	rx(*v->begin());
+	delete v;
 	double tv = dur();
-	tmul(ARR.begin(), ARR.begin() + MUL_SIZE);
+	array<type, MUL_SIZE << 1> *a = new array<type, MUL_SIZE << 1>();
+	tmul(ARR.begin(), a->begin());
+	rx(*a->begin());
+	delete a;
 	double ta = dur();
-	tmul(STR.begin(), STR.begin() + MUL_SIZE);
+	basic_string<type> *s = new basic_string<type>(MUL_SIZE << 1, type());
+	tmul(STR.begin(), s->begin());
+	rx(*s->begin());
+	delete s;
 	double ts = dur();
 	p("RAW", "MULT", tr);
 	p("VEC", "MULT", tv);
@@ -156,12 +179,14 @@ void trac() {
 }
 
 int main() {
+	tmp = fopen("perf.tmp", "w");
 	srand((unsigned int) time(nullptr));
 	gen();
 	tcon();
 	tsort();
 	tmul();
 	trac();
+	fclose(tmp);
 	return 0;
 }
 
