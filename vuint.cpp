@@ -70,16 +70,9 @@ namespace vio {
 			return vuint(mulVU32(data, with.data));
 		}
 
-		vuint operator /(const vuint &with) const {
-			return vuint(divVU32(data, with.data));
-		}
 
 		vuint mul(const vuint &with) const {
 			return vuint(mulVU32ir(data.cbegin(), data.cend(), with.data.cbegin(), with.data.cend()));
-		}
-		
-		vuint div(const u32 with) const {
-			return vuint(divVU32iu(data.cbegin(), data.cend(), with));
 		}
 
 	private:
@@ -130,10 +123,6 @@ namespace vio {
 
 		static inline vu32 mulVU32(const vu32 &vu1, const vu32 &vu2) {
 			return mulVU32i(vu1.cbegin(), vu1.cend(), vu2.cbegin(), vu2.cend());
-		}
-
-		static inline vu32 divVU32(const vu32 &vu1, const vu32 &vu2) {
-			return divVU32i(vu1.cbegin(), vu1.cend(), vu2.cbegin(), vu2.cend());
 		}
 
 		static vu32 addVU32i(civu32 begin1, civu32 end1, civu32 begin2, civu32 end2, const u64 carry = 0) {
@@ -234,35 +223,6 @@ namespace vio {
 			return res;
 		}
 
-		static vu32 divVU32i(civu32 begin1, civu32 end1, civu32 begin2, civu32 end2) {
-			siz dis1 = end1 - begin1;
-			siz dis2 = end2 - begin2;
-			assert(dis2);
-			if (dis1 < dis2)
-				return vu32();
-			if (dis2 == 1)
-				return divVU32iu(begin1, end1, *begin2);
-			vu32 res(dis1 - dis2 + 1);
-			u64 tmp = 0, dv = 0;
-			if (b[0] >> 16) {
-				dv = b[dis2 - 1] + 1;
-				for (civu32 i = end1 - 1; i >= begin1 + dis2 - 1; --i) {
-					tmp = (tmp << 32) | *i;
-					u64 t1 = tmp / dv;
-					vu32 pmt = mulVU32iu(begin2, end2, dv + 1);
-					decVU32i(i, end1, pmt.begin(), pmt.end());
-					while (!*end1)
-						--end1;
-					while (cmpVU32i(i, end1, begin2, end2) >= 0) {
-						decVU32i(i, end1, begin2, end2);
-						++t1;
-					}
-				}
-			}
-			else {
-			}
-		}
-
 		static vu32 divVU32iu(civu32 begin, civu32 end, const u32 val) {
 			siz dis = end - begin;
 			if (!dis || (dis == 1 && *begin < val))
@@ -315,6 +275,28 @@ namespace vio {
 		}
 	private:
 		vu32 data;
+		template<typename it1, typename it2>
+		class MulHelper {
+		public:
+			MulHelper(it1 head1, siz size1, it2 head2, siz size2) : H1(head1), Z1(size1), H2(head2), Z2(size2) {
+				for (; Z1 > 0 && !*(H1 + Z1 - 1); --Z1);
+				for (; Z2 > 0 && !*(H2 + Z2 - 1); --Z2);
+	
+			}
+
+			vu32 mul() {
+				siz zax = (((Z1 > Z2 ? Z1 : Z2) + 1) >> 1) * 6;
+				vu32 V(zax);
+				V.resize(Z1 + Z2);
+			}
+
+		private:
+			it1 H1;
+			siz Z1;
+			it2 H2;
+			siz Z2;
+		};
+
 	};
 }
 
@@ -331,13 +313,14 @@ typedef vio::vuint vt;
 #include <ctime>
 
 #define DECI(z, a, b) vt v##z(a, b); tt t##z(a, b);
-
+/*
 int main() {
 	DECI(a, 2, 0x00000001);
 	vt vc = va.div(0x3322);
 	va.print("a");
 	vc.print("a / x");
 }
+*/
 
 int xmain() {
 	DECI(a, 40001, 0xA0EA01F0);
