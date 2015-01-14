@@ -6,11 +6,11 @@ def u(a, b):
         r = r + b
     return int(r, 16)
 
-xi = raw_input().split(' ')
-yi = raw_input().split(' ')
+xi = int(raw_input(), 16)#.split(' ')
+yi = int(raw_input(), 16)#.split(' ')
 
-x = u(int(xi[0]), str(xi[1]))
-y = u(int(yi[0]), str(yi[1]))
+x = xi#u(int(xi[0]), str(xi[1]))
+y = yi#u(int(yi[0]), str(yi[1]))
 
 print('x + y: ' + hex(x + y))
 print('x - y: ' + hex(x - y))

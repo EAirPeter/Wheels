@@ -285,52 +285,85 @@ namespace vio {
 			}
 
 			vu32 mul() {
-				siz zax = ((((Z1 > Z2 ? Z1 : Z2) + 1) >> 1) << 3) + 3;
+				siz zax = (((Z1 > Z2 ? Z1 : Z2) + 1) >> 1) * 17 + 4;
 				vu32 V(zax);
-				siz z = mul(V.begin(), H1, Z1, H2, Z2);
+				siz z = mul(V.begin(), H1, Z1, H2, Z2, 0);
 				V.resize(z);
-				while (!V.back())
+				while (!V.empty() && !V.back())
 					V.pop_back();
 				return V;
 			}
 
 			//for DEBUG
 			template<typename it>
-			void print(const char * t, it h, siz z) {
+			void print(const char * t, it h, siz z, int d) {
+				if (d != 1)
+				;//return;
+				if (d > -1)
+					printf("[MUL%02d] ", d);
 				printf("%s: ", t);
-				for (siz i = 0; i < z; ++i)
-					printf("%08x", *(h++));
+				for (siz i = z - 1; i < z; --i)
+					printf("%08x", *(h + i));
 				puts("");
 			}
-
 		private:
 			template<typename out, typename in1, typename in2>
-			siz mul(out o, in1 h1, siz z1, in2 h2, siz z2) {
+			siz mul(out o, in1 h1, siz z1, in2 h2, siz z2, int d) {
+				while (z1 > 0 && !h1[z1 - 1])
+					--z1;
+				while (z2 > 0 && !h2[z2 - 1])
+					--z2;
+				print("H1", h1, z1, d);
+				print("H2", h2, z2, d);
 				if (!z1 || !z2)
 					return 0;
 				if (z1 == 1)
 					return mul(o, h2, z2, *h1);
 				if (z2 == 1)
 					return mul(o, h1, z1, *h2);
+				//if (z1 * z2 < 400)
+					//return _mul(o, h1, z1, h2, z2);
 				siz s = ((z1 > z2 ? z1 : z2) + 1) >> 1;
 				siz i1 = s > z1 ? z1 : s;
 				siz i2 = s > z2 ? z2 : s;
-				siz s1 = mul(o, h1, i1, h2, i2);
-				siz s2 = mul(o + (s << 1), h1, z1 - i1, h2, z2 - i2);
-				siz s3 = add(o + s * 6 + 2, h1, i1, h1 + i1, z1 - i1);
-				siz s4 = add(o + s * 7 + 3, h2, i2, h2 + i2, z2 - i2);
-				siz s5 = mul(o + (s << 2), o + s * 6 + 2, s3, o + s * 7 + 3, s4);
-				print("o+4s", o + (s << 2), s5);
-				print("o", o, s1);
-				s5 = sub(o + (s << 2), o + (s << 2), s5, o, s1);
-				print("o+4s", o + (s << 2), s5);
-				print("o+s", o + s, s2);
-				s5 = sub(o + (s << 2), o + (s << 2), s5, o + (s << 1), s2);
-				print("o+4s", o + (s << 2), s5);
+				out h3 = o + s * 4;
+				out h4 = o + s * 5 + 1;
+				out h5 = o + s * 6 + 2;
+				print("H1l", h1, i1, d);
+				print("H1h", h1 + i1, z1 - i1, d);
+				print("H2l", h2, i2, d);
+				print("H2h", h2 + i2, z2 - i2, d);
+				siz s1 = mul(o, h1, i1, h2, i2, d + 1);
+				print("o", o, s1, d);
+				print("H1l", h1, i1, d);
+				print("H1h", h1 + i1, z1 - i1, d);
+				print("H2l", h2, i2, d);
+				print("H2h", h2 + i2, z2 - i2, d);
+				siz s2 = mul(o + (s << 1), h1 + i1, z1 - i1, h2 + i2, z2 - i2, d + 1);
+				print("o+2s", o + (s << 1), s2, d);
+				siz s3 = add(h3, h1, i1, h1 + i1, z1 - i1);
+				print("o+4s", h3, s3, d);
+				siz s4 = add(h4, h2, i2, h2 + i2, z2 - i2);
+				print("o+5s+1", h4, s4, d);
+				siz s5 = mul(h5, h3, s3, h4, s4, d + 1);
+				print("o+6s+2", h5, s5, d);
+				print("o", o, s1, d);
+				s5 = sub(h5, h5, s5, o, s1);
+				print("o+6s+2-o", h5, s5, d);
+				print("o+2s", o + (s << 1), s2, d);
+				s5 = sub(h5, h5, s5, o + (s << 1), s2);
 				std::fill(o + s1, o + (s << 1), 0);
 				std::fill(o + s2 + (s << 1), o + (s << 2), 0);
-				siz s6 = add(o + s, o + (s << 2), s5);
-				return s6;
+				print("o+6s+2-(o+2s)", h5, s5, d);
+				siz s6 = add(o + s, h5, s5);
+				siz s7 = s6 > s + s2 ? s + s6 : (s << 1) + s2;
+				print("out", o, s7, d);
+				return s7;
+			}
+
+			template<typename out, typename in1, typename in2>
+			siz _mul(out o, in1 h1, siz z1, in2 h2, siz z2) {
+				
 			}
 			
 			template<typename out, typename it>
@@ -340,7 +373,7 @@ namespace vio {
 				u64 tmp = 0;
 				out w = o;
 				for (siz i = 0; i < z; ++i) {
-					tmp += *(h++) * v;
+					tmp += (u64) *(h++) * v;
 					*(o++) = (u32) tmp;
 					tmp >>= 32;
 				}
@@ -357,7 +390,7 @@ namespace vio {
 				u64 tmp = 0;
 				out w = o;
 				for (siz i = 0; i < z; ++i) {
-					tmp += *o + *(h++);
+					tmp += (u64) *o + *(h++);
 					*(o++) = (u32) tmp;
 					tmp >>= 32;
 				}
@@ -380,7 +413,7 @@ namespace vio {
 					tmp >>= 32;
 				}
 				for (siz i = z2; i < z1; ++i) {
-					tmp += *(h1++);
+					tmp += (u64) *(h1++);
 					*(o++) = (u32) tmp;
 					tmp >>= 32;
 				}
@@ -397,6 +430,8 @@ namespace vio {
 				assert(z1 >= z2);
 				i64 tmp = 0;
 				out w = o;
+				in1 i1 = h1;
+				in2 i2 = h2;
 				for (siz i = 0; i < z2; ++i) {
 					tmp += (i64) *(h1++) - *(h2++);
 					*(o++) = (u32) tmp;
@@ -407,7 +442,15 @@ namespace vio {
 					*(o++) = (u32) tmp;
 					tmp >>= 32;
 				}
-				assert(!tmp);
+				if (tmp)
+					printf("[SUB] TMP FAILED:\n");
+					printf("[SUB] H1 FIN: %d/%d\n", h1 - i1, (int) z1);
+					printf("[SUB] H2 FIN: %d/%d\n", h2 - i2, (int) z2);
+					print("[SUB] H1", i1, z1, -1);
+					print("[SUB] H2", i2, z2, -1);
+					print("[SUB] O", w, o - w, -1);
+				if (tmp)
+					abort();
 				while (o != w && !*(o - 1))
 					--o;
 				return o - w;
@@ -446,8 +489,10 @@ int main() {
 */
 
 int main() {
-	DECI(a, 41, 0xA0EA01F0);
-	DECI(b, 40, 0x2DEEEF1E);
+	int m, n;
+	scanf("%d%d", &m, &n);
+	DECI(a, m, 0xFFFFFFFF);
+	DECI(b, n, 0xFFFFFFFF);
 	//vt a(3, 0x10000100);
 	//vt b(2, 0xFDEEEFFE);
 	//a.print("a");
@@ -464,9 +509,9 @@ int main() {
 	//d.print("a - b");
 	//e.print("a * b");
 	std::printf("v: %f s\n", (double) (t2 - t1) / CLOCKS_PER_SEC);
-	//ve.print("v: a * b");
+	ve.print("v: a * b");
 	std::printf("t: %f s\n", (double) (t3 - t2) / CLOCKS_PER_SEC);
-	//te.print("t: a * b");
+	te.print("t: a * b");
 	std::puts(ve == te ? "v equ t" : "v neq t");
 	//while (true);
 	return 0;
