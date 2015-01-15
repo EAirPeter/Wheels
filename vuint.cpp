@@ -6,6 +6,8 @@
 #include <iterator>
 #include <vector>
 
+#include "vcomplex.h"
+
 namespace vio {
 
 	class vuint {
@@ -68,27 +70,45 @@ namespace vio {
 			return vuint(mul(data, with.data));
 		}
 
+		vuint operator /(const vuint &with) const {
+			return vuint(div(data, with.data));
+		}
+
 	private:
 		static inline vu32 add(const vu32 &v1, const vu32 &v2) {
+			if (v1.size() > v2.size()) {
+				vu32 vo(v1.size() + 1);
+				siz zo = add(vo.begin(), v1.cbegin(), v1.size(), v2.cbegin(), v2.size());
+				vo.resize(wrap(vo.cbegin(), zo));
+				return std::move(vo);
+			}
+			else {
+				vu32 vo(v2.size() + 1);
+				siz zo = add(vo.begin(), v2.cbegin(), v2.size(), v1.cbegin(), v1.size());
+				vo.resize(wrap(vo.cbegin(), zo));
+				return std::move(vo);
+			}
 		}
 
 		static inline vu32 sub(const vu32 &v1, const vu32 &v2) {
+			vu32 vo(v1.size());
+			siz zo = sub(vo.begin(), v1.cbegin(), v1.size(), v2.cbegin(), v2.size());
+			vo.resize(wrap(vo.cbegin(), zo));
+			return std::move(vo);
 		}
 
 		static inline vu32 mul(const vu32 &v1, const vu32 &v2) {
+			siz z1 = v1.size();
+			siz z2 = v2.size();
+			siz zo = (((wrap(v1.cbegin(), z1) > wrap(v2.cbegin(), z2) ? z1 : z2) + 1) >> 1) * 13;
+			vu32 vo(zo);
+			zo = mul(vo.begin(), v1.cbegin(), z1, v2.cbegin(), z2);
+			vo.resize(wrap(vo.cbegin(), zo));
+			return std::move(vo);
 		}
 		
-		static inline vu32 div(const vu32 &v1, const vu32 &v2) {
-		}
-		
-		vu32 mul() {
-			siz zax = (((Z1 > Z2 ? Z1 : Z2) + 1) >> 1) * 13 + 4;
-			vu32 V(zax);
-			siz z = mul(V.begin(), H1, Z1, H2, Z2);
-			V.resize(z);
-			while (!V.empty() && !V.back())
-				V.pop_back();
-			return V;
+		static inline vu32 div(const vu32 &, const vu32 &) {
+			return vu32();
 		}
 		
 		static siz mul(ivu32 o, civu32 h1, siz z1, civu32 h2, siz z2) {
@@ -161,6 +181,7 @@ namespace vio {
 		
 		//ASSUME: memory cleared
 		static siz add(ivu32 o, civu32 h, siz z) {
+			wrap(h, z);
 			u64 tmp = 0;
 			ivu32 w = o;
 			for (siz i = 0; i < z; ++i) {
@@ -219,7 +240,8 @@ namespace vio {
 				--o;
 			return o - w;
 		}
-		
+
+	public:
 		static int cmp(const vu32 &v1, const vu32 &v2) {
 			int res = (int) v1.size() - (int) v2.size();
 			if (res)
@@ -240,17 +262,18 @@ namespace vio {
 				if (h1[i] != h2[i])
 					return h1[i] - h2[i];
 		}
-		static inline void wrap(civu32 h, siz &z) {
+		static inline siz wrap(civu32 h, siz &z) {
 			while (z > 0 && !h[z - 1])
 				--z;
+			return z;
 		}
-	private:
+	public://private:
 		vu32 data;
 
 	};
 }
 
-//#define TEST_TINT
+#define TEST_TINT
 #ifdef TEST_TINT
 
 #include "tint.h"
@@ -259,14 +282,42 @@ typedef tint tt;
 typedef vio::vuint tt;
 #endif
 typedef vio::vuint vt;
-
+typedef vio::vcomplex<long double> vc;
+#include <cstdlib>
 #include <ctime>
 
 #define DECI(z, a, b) vt v##z(a, b); tt t##z(a, b);
 
-int main() {
+int mainFFT() {
+	size_t N;
+	size_t T;
+	std::scanf("%u%u", &N, &T);
+	N = 1 << N;
+	std::vector<vc> v1(N);
+	for (size_t i = 0; i < N; ++i)
+		v1[i] = vc(rand() & 0xffff, rand() & 0xffff);
+	std::vector<vc> v2(v1);
+	std::clock_t t1 = clock();
+	for (size_t i = 0; i < T; ++i) {
+		vc::fft(v1.begin(), v1.size(), 1);
+		vc::fft(v1.begin(), v1.size(), -1);
+	}
+	std::clock_t t2 = clock();
+	bool s = true;
+	for (size_t i = 0; i < N; ++i)
+		if (v1[i] != v2[i]) {
+			s = false;
+			break;
+		}
+
+	printf("FFT: size=%u cmplx; rep=%u times; time=%f s\n", N, T,(double) (t2 - t1) / CLOCKS_PER_SEC);
+	puts(s ? "FFT SUCCEEDED" : "FFT FAILED");
+	return 0;
+}
+
+int mainCALC() {
 	int m, n;
-	scanf("%d%d", &m, &n);
+	std::scanf("%d%d", &m, &n);
 	DECI(a, m, 0xFFFFFFFF);
 	DECI(b, n, 0xFFFFFFFF);
 	//vt a(3, 0x10000100);
@@ -275,21 +326,27 @@ int main() {
 	//b.print("b");
 	//vt c = a + b;
 	//vt d = a - b;
-	std::time_t t1 = clock();
+	std::clock_t t1 = clock();
 	vt ve = va * vb;
-	std::time_t t2 = clock();
-	vt te = va.mul(vb);
-	//tt te = ta * tb;
-	std::time_t t3 = clock();
+	std::clock_t t2 = clock();
+	//vt te = va.mul(vb);
+	tt te = ta * tb;
+	std::clock_t t3 = clock();
 	//c.print("a + b");
 	//d.print("a - b");
 	//e.print("a * b");
+	if (m + n < 400) {
+		ve.print("v: a * b");
+		te.print("t: a * b");
+	}
 	std::printf("v: %f s\n", (double) (t2 - t1) / CLOCKS_PER_SEC);
-	//ve.print("v: a * b");
 	std::printf("t: %f s\n", (double) (t3 - t2) / CLOCKS_PER_SEC);
-	//te.print("t: a * b");
-	std::puts(ve == te ? "v equ t" : "v neq t");
+	std::puts(vt::cmp(ve.data, te.data) ? "v neq t" : "v eql t");
 	//while (true);
 	return 0;
+}
+
+int main() {
+	return mainFFT();
 }
 

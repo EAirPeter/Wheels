@@ -55,6 +55,5 @@ public:
 			v.pop_back();
 		return v;
 	}
-private:
 	vu32 data;
 };
