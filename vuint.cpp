@@ -288,6 +288,17 @@ typedef vio::vcomplex<long double> vc;
 
 #define DECI(z, a, b) vt v##z(a, b); tt t##z(a, b);
 
+inline double dur(const clock_t fr, const clock_t to) {
+	return (double) (to - fr) / CLOCKS_PER_SEC;
+}
+
+inline double dur() {
+	static clock_t prev = clock();
+	double ret = dur(prev, clock());
+	prev = clock();
+	return ret;
+}
+
 int mainFFT() {
 	size_t N;
 	size_t T;
@@ -295,22 +306,21 @@ int mainFFT() {
 	N = 1 << N;
 	std::vector<vc> v1(N);
 	for (size_t i = 0; i < N; ++i)
-		v1[i] = vc(rand() & 0xffff, rand() & 0xffff);
+		v1[i] = vc(rand(), rand());
 	std::vector<vc> v2(v1);
-	std::clock_t t1 = clock();
+	dur();
 	for (size_t i = 0; i < T; ++i) {
 		vc::fft(v1.begin(), v1.size(), 1);
 		vc::fft(v1.begin(), v1.size(), -1);
 	}
-	std::clock_t t2 = clock();
+	double tfft = dur();
 	bool s = true;
 	for (size_t i = 0; i < N; ++i)
 		if (v1[i] != v2[i]) {
 			s = false;
 			break;
 		}
-
-	printf("FFT: size=%u cmplx; rep=%u times; time=%f s\n", N, T,(double) (t2 - t1) / CLOCKS_PER_SEC);
+	printf("FFT: size=%ucmplx; rep=%utimes; time=%fs\n", N, T, tfft);
 	puts(s ? "FFT SUCCEEDED" : "FFT FAILED");
 	return 0;
 }

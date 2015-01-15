@@ -15,16 +15,8 @@ namespace vio {
 		inline bool operator !=(const vcomplex<tp> &with) const {
 			return !(*this == with);
 		}
-
 		inline bool operator ==(const vcomplex<tp> &with) const {
 			return fabs(a - with.a) < 1e-8 && fabs(b - with.b) < 1e-8;
-		}
-
-		inline vcomplex<tp> operator *(const vcomplex<tp> &with) const {
-			return vcomplex<tp>(a * with.a - b * with.b, a * with.b + b * with.a);
-		}
-		inline vcomplex<tp> operator -(const vcomplex<tp> &with) const {
-			return vcomplex<tp>(a - with.a, b - with.b);
 		}
 		inline vcomplex<tp> &operator =(const vcomplex<tp> &with) {
 			a = with.a;
@@ -37,9 +29,7 @@ namespace vio {
 			a = v1;
 			return *this;
 		}
-		inline vcomplex<tp> &operator /=(const tp with) {
-			a /= with;
-			b /= with;
+		inline vcomplex<tp> &operator /=(const vcomplex<tp> &with) {
 			return *this;
 		}
 		inline vcomplex<tp> &operator +=(const vcomplex<tp> &with) {
@@ -47,11 +37,45 @@ namespace vio {
 			b += with.b;
 			return *this;
 		}
+		inline vcomplex<tp> &operator -=(const vcomplex<tp> &with) {
+			a -= with.a;
+			b -= with.b;
+			return *this;
+		}
+		inline vcomplex<tp> operator *(const vcomplex<tp> &with) const {
+			return vcomplex<tp>(a * with.a - b * with.b, a * with.b + b * with.a);
+		}
+		inline vcomplex<tp> operator /(const vcomplex<tp> &with) const {
+			return vcomplex<tp>();
+		}
+		inline vcomplex<tp> operator +(const vcomplex<tp> &with) const {
+			return vcomplex<tp>(a + with.a, b - with.b);
+		}
+		inline vcomplex<tp> operator -(const vcomplex<tp> &with) const {
+			return vcomplex<tp>(a - with.a, b - with.b);
+		}
+		
+		inline vcomplex<tp> &operator *=(const tp with) {
+			a *= with;
+			b *= with;
+			return *this;
+		}
+		inline vcomplex<tp> &operator /=(const tp with) {
+			a /= with;
+			b /= with;
+			return *this;
+		}
+		inline vcomplex<tp> operator *(const tp with) {
+			return vcomplex<tp>(a * with, b * with);
+		}
+		inline vcomplex<tp> operator /(const tp with) {
+			return vcomplex<tp>(a / with, b / with);
+		}
 
 		template<typename it>
 		static void fft(it A, const siz N, const int V) {
 			static const tp PI = 3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679L;
-			const tp tmp = PI *V * 2;
+			const tp tmp = PI * V * 2;
 			for (siz i = 0; i < N; ++i) {
 				siz r = 0;
 				for (siz j = i, k = 1; k < N; j >>= 1, k <<= 1)
