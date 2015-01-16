@@ -18,6 +18,7 @@ namespace vio {
 		typedef std::vector<u32> vu32;
 		typedef vu32::iterator ivu32;
 		typedef vu32::const_iterator civu32;
+		typedef vcomplex<long double> cld;
 		static const siz MAGIC_NUM = 480;
 	public:
 		// for DEBUG
@@ -109,6 +110,33 @@ namespace vio {
 		
 		static inline vu32 div(const vu32 &, const vu32 &) {
 			return vu32();
+		}
+	
+		static siz mul_fft(ivu32 o, civu32 h1, siz z1, civu32 h2, siz z2) {
+			wrap(h1, z1);
+			wrap(h2, z2);
+			ivu32 w = o;
+			siz z = 1;
+			while (z < z1 || z < z2)
+				z <<= 1;
+			z <<= 1;
+			vector<cld> v1(z), v2(z);
+			for (siz i = 0; i < z1; ++i)
+				v1[i] = *(h1++);
+			for (siz i = 0; i < z2; ++i)
+				v2[i] = *(h2++);
+			cld::fft(v1.begin(), z, 1);
+			cld::fft(v2.begin(), z, 1);
+			for (siz i = 0; i < z; ++i)
+				v1[i] *= v2[i];
+			cld::fft(v1.begin(), z, -1);
+			u64 tmp = 0;
+			for (siz i = 0; i < z; ++i) {
+				tmp += (u64) (v1[i].a + 0.5);
+				*(o++) = (u32) tmp;
+				tmp >>= 32;
+			}
+			return o - w;
 		}
 		
 		static siz mul(ivu32 o, civu32 h1, siz z1, civu32 h2, siz z2) {
@@ -306,7 +334,7 @@ int mainFFT() {
 	N = 1 << N;
 	std::vector<vc> v1(N);
 	for (size_t i = 0; i < N; ++i)
-		v1[i] = vc(rand(), rand());
+		v1[i] = vc(rand() & 0xffff, rand() & 0xffff);
 	std::vector<vc> v2(v1);
 	dur();
 	for (size_t i = 0; i < T; ++i) {

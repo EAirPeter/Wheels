@@ -24,12 +24,16 @@ namespace vio {
 			return *this;
 		}
 		inline vcomplex<tp> &operator *=(const vcomplex<tp> &with) {
-			tp v1 = a * with.a - b * with.b;
+			const tp v1 = a * with.a - b * with.b;
 			b = a * with.b + b * with.a;
 			a = v1;
 			return *this;
 		}
 		inline vcomplex<tp> &operator /=(const vcomplex<tp> &with) {
+			const tp v1 = a * with.a + b * with.b;
+			const tp v2 = with.norm();
+			b = (b * with.a - a * with.b) / v2;
+			a = v1 / v2;
 			return *this;
 		}
 		inline vcomplex<tp> &operator +=(const vcomplex<tp> &with) {
@@ -46,7 +50,8 @@ namespace vio {
 			return vcomplex<tp>(a * with.a - b * with.b, a * with.b + b * with.a);
 		}
 		inline vcomplex<tp> operator /(const vcomplex<tp> &with) const {
-			return vcomplex<tp>();
+			const tp v1 = with.norm();
+			return vcomplex<tp>((a * with.a + b * with.b) / v1, (b * with.a - a * with.b) / v1);
 		}
 		inline vcomplex<tp> operator +(const vcomplex<tp> &with) const {
 			return vcomplex<tp>(a + with.a, b - with.b);
@@ -65,16 +70,34 @@ namespace vio {
 			b /= with;
 			return *this;
 		}
+		inline vcomplex<tp> &operator +=(const tp with) {
+			a += with;
+			return *this;
+		}
+		inline vcomplex<tp> &operator -=(const tp with) {
+			a -= with;
+			return *this;
+		}
 		inline vcomplex<tp> operator *(const tp with) {
 			return vcomplex<tp>(a * with, b * with);
 		}
 		inline vcomplex<tp> operator /(const tp with) {
 			return vcomplex<tp>(a / with, b / with);
 		}
+		inline vcomplex<tp> operator +(const tp with) {
+			return vcomplex<tp>(a + with, b + with);
+		}
+		inline vcomplex<tp> operator -(const tp with) {
+			return vcomplex<tp>(a - with, b - with);
+		}
+
+		tp norm() const {
+			return a * a + b * b;
+		}
 
 		template<typename it>
 		static void fft(it A, const siz N, const int V) {
-			static const tp PI = 3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679L;
+			static const tp PI(3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679L);
 			const tp tmp = PI * V * 2;
 			for (siz i = 0; i < N; ++i) {
 				siz r = 0;
@@ -99,9 +122,8 @@ namespace vio {
 				for (siz i = 0; i < N; ++i)
 					A[i] /= N;
 		}
-	private:
-		tp a, b;
 	public:
+		tp a, b;
 	};
 }
 

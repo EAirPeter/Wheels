@@ -16,10 +16,15 @@ const size_t CON_TIMES = 100;
 
 typedef int type;
 
-vector<type> VEC(MAX_SIZE);
-array<type, MAX_SIZE> ARR;
-basic_string<type> STR(MAX_SIZE, type());
-type RAW[MAX_SIZE];
+vector<type> *pvec = new vector<type>(MAX_SIZE);
+array<type, MAX_SIZE> *parr = new array<type, MAX_SIZE>();
+basic_string<type> *pstr = new basic_string<type>(MAX_SIZE, type());
+type *praw = new type[MAX_SIZE];
+
+vector<type> &VEC = *pvec;
+array<type, MAX_SIZE> &ARR = *parr;
+basic_string<type> &STR = *pstr;
+type *RAW = praw;
 
 FILE *tmp;
 
