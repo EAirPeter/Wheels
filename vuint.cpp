@@ -74,19 +74,23 @@ namespace vio {
 		vuint operator /(const vuint &with) const {
 			return vuint(div(data, with.data));
 		}
+		
+		vuint mul_fft(const vuint &with) const {
+			return vuint(mul_fft(data, with.data));
+		}
 
 	private:
 		static inline vu32 add(const vu32 &v1, const vu32 &v2) {
 			if (v1.size() > v2.size()) {
 				vu32 vo(v1.size() + 1);
 				siz zo = add(vo.begin(), v1.cbegin(), v1.size(), v2.cbegin(), v2.size());
-				vo.resize(wrap(vo.cbegin(), zo));
+				vo.resize(wrapv(vo.cbegin(), zo));
 				return std::move(vo);
 			}
 			else {
 				vu32 vo(v2.size() + 1);
 				siz zo = add(vo.begin(), v2.cbegin(), v2.size(), v1.cbegin(), v1.size());
-				vo.resize(wrap(vo.cbegin(), zo));
+				vo.resize(wrapv(vo.cbegin(), zo));
 				return std::move(vo);
 			}
 		}
@@ -94,17 +98,24 @@ namespace vio {
 		static inline vu32 sub(const vu32 &v1, const vu32 &v2) {
 			vu32 vo(v1.size());
 			siz zo = sub(vo.begin(), v1.cbegin(), v1.size(), v2.cbegin(), v2.size());
-			vo.resize(wrap(vo.cbegin(), zo));
+			vo.resize(wrapv(vo.cbegin(), zo));
 			return std::move(vo);
 		}
 
 		static inline vu32 mul(const vu32 &v1, const vu32 &v2) {
 			siz z1 = v1.size();
 			siz z2 = v2.size();
-			siz zo = (((wrap(v1.cbegin(), z1) > wrap(v2.cbegin(), z2) ? z1 : z2) + 1) >> 1) * 13;
+			siz zo = (((wrapr(v1.cbegin(), z1) > wrapr(v2.cbegin(), z2) ? z1 : z2) + 1) >> 1) * 13;
 			vu32 vo(zo);
 			zo = mul(vo.begin(), v1.cbegin(), z1, v2.cbegin(), z2);
-			vo.resize(wrap(vo.cbegin(), zo));
+			vo.resize(wrapv(vo.cbegin(), zo));
+			return std::move(vo);
+		}
+
+		static inline vu32 mul_fft(const vu32 &v1, const vu32 &v2) {
+			vu32 vo(v1.size() + v2.size());
+			siz zo = mul_fft(vo.begin(), v1.cbegin(), v1.size(), v2.cbegin(), v2.size());
+			vo.resize(wrapv(vo.cbegin(), zo));
 			return std::move(vo);
 		}
 		
@@ -113,8 +124,8 @@ namespace vio {
 		}
 	
 		static siz mul_fft(ivu32 o, civu32 h1, siz z1, civu32 h2, siz z2) {
-			wrap(h1, z1);
-			wrap(h2, z2);
+			wrapr(h1, z1);
+			wrapr(h2, z2);
 			ivu32 w = o;
 			siz z = 1;
 			while (z < z1 || z < z2)
@@ -136,12 +147,12 @@ namespace vio {
 				*(o++) = (u32) tmp;
 				tmp >>= 32;
 			}
-			return o - w;
+			return wrapv(w, z1 + z2);
 		}
 		
 		static siz mul(ivu32 o, civu32 h1, siz z1, civu32 h2, siz z2) {
-			wrap(h1, z1);
-			wrap(h2, z2);
+			wrapr(h1, z1);
+			wrapr(h2, z2);
 			if (!z1 || !z2)
 				return 0;
 			if (z1 == 1)
@@ -171,8 +182,8 @@ namespace vio {
 		}
 		
 		static siz mul0(ivu32 o, civu32 h1, siz z1, civu32 h2, siz z2) {
-			wrap(h1, z1);
-			wrap(h2, z2);
+			wrapr(h1, z1);
+			wrapr(h2, z2);
 			siz z = z1 + z2 + 2;
 			std::fill(o, o + z, 0);
 			u64 tmp = 0;
@@ -186,7 +197,7 @@ namespace vio {
 					}
 				}
 			}
-			wrap(o, z);
+			wrapr(o, z);
 			return z;
 		}
 		
@@ -209,7 +220,7 @@ namespace vio {
 		
 		//ASSUME: memory cleared
 		static siz add(ivu32 o, civu32 h, siz z) {
-			wrap(h, z);
+			wrapr(h, z);
 			u64 tmp = 0;
 			ivu32 w = o;
 			for (siz i = 0; i < z; ++i) {
@@ -281,8 +292,8 @@ namespace vio {
 		}
 
 		static int cmp(civu32 h1, siz z1, civu32 h2, siz z2) {
-			wrap(h1, z1);
-			wrap(h2, z2);
+			wrapr(h1, z1);
+			wrapr(h2, z2);
 			int res = (int) z1 - (int) z2;
 			if (res)
 				return res;
@@ -290,7 +301,13 @@ namespace vio {
 				if (h1[i] != h2[i])
 					return h1[i] - h2[i];
 		}
-		static inline siz wrap(civu32 h, siz &z) {
+
+		static inline siz wrapv(civu32 h, siz z) {
+			while (z > 0 && !h[z - 1])
+				--z;
+			return z;
+		}
+		static inline siz wrapr(civu32 h, siz &z) {
 			while (z > 0 && !h[z - 1])
 				--z;
 			return z;
@@ -301,7 +318,7 @@ namespace vio {
 	};
 }
 
-#define TEST_TINT
+//#define TEST_TINT
 #ifdef TEST_TINT
 
 #include "tint.h"
@@ -356,8 +373,8 @@ int mainFFT() {
 int mainCALC() {
 	int m, n;
 	std::scanf("%d%d", &m, &n);
-	DECI(a, m, 0xFFFFFFFF);
-	DECI(b, n, 0xFFFFFFFF);
+	DECI(a, m, 0xFFFF);
+	DECI(b, n, 0xFFFF);
 	//vt a(3, 0x10000100);
 	//vt b(2, 0xFDEEEFFE);
 	//a.print("a");
@@ -368,7 +385,7 @@ int mainCALC() {
 	vt ve = va * vb;
 	std::clock_t t2 = clock();
 	//vt te = va.mul(vb);
-	tt te = ta * tb;
+	tt te = ta.mul_fft(tb);
 	std::clock_t t3 = clock();
 	//c.print("a + b");
 	//d.print("a - b");
@@ -385,6 +402,6 @@ int mainCALC() {
 }
 
 int main() {
-	return mainFFT();
+	return mainCALC();
 }
 
