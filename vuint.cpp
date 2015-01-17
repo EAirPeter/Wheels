@@ -11,6 +11,7 @@
 namespace vio {
 
 	class vuint {
+	public:
 		typedef std::uint32_t u32;
 		typedef std::uint64_t u64;
 		typedef std::int64_t i64;
@@ -114,7 +115,7 @@ namespace vio {
 
 		static inline vu32 mul_fft(const vu32 &v1, const vu32 &v2) {
 			vu32 vo(v1.size() + v2.size());
-			siz zo = mul_fft(vo.begin(), v1.cbegin(), v1.size(), v2.cbegin(), v2.size());
+			siz zo = mul_fft_8(vo.begin(), v1.cbegin(), v1.size(), v2.cbegin(), v2.size());
 			vo.resize(wrapv(vo.cbegin(), zo));
 			return std::move(vo);
 		}
@@ -123,7 +124,7 @@ namespace vio {
 			return vu32();
 		}
 	
-		static siz mul_fft(ivu32 o, civu32 h1, siz z1, civu32 h2, siz z2) {
+		static siz mul_fft_32(ivu32 o, civu32 h1, siz z1, civu32 h2, siz z2) {
 			wrapr(h1, z1);
 			wrapr(h2, z2);
 			ivu32 w = o;
@@ -142,8 +143,90 @@ namespace vio {
 				v1[i] *= v2[i];
 			cld::fft(v1.begin(), z, -1);
 			u64 tmp = 0;
-			for (siz i = 0; i < z; ++i) {
+			for (siz i = 0; i < z1 + z2; ++i) {
 				tmp += (u64) (v1[i].a + 0.5);
+				*(o++) = (u32) tmp;
+				tmp >>= 32;
+			}
+			return wrapv(w, z1 + z2);
+		}
+	
+		static siz mul_fft_16(ivu32 o, civu32 h1, siz z1, civu32 h2, siz z2) {
+			wrapr(h1, z1);
+			wrapr(h2, z2);
+			ivu32 w = o;
+			siz z = 1;
+			while (z < z1 || z < z2)
+				z <<= 1;
+			z <<= 2;
+			vector<cld> v1(z), v2(z);
+			for (siz i = 0, j = 0; i < z1; ++i) {
+				u32 tmp = h1[i];
+				v1[j++] = tmp & 0xFFFF;
+				tmp >>= 16;
+				v1[j++] = tmp;
+			}
+			for (siz i = 0, j = 0; i < z2; ++i) {
+				u32 tmp = h2[i];
+				v2[j++] = tmp & 0xFFFF;
+				tmp >>= 16;
+				v2[j++] = tmp;
+			}
+			cld::fft(v1.begin(), z, 1);
+			cld::fft(v2.begin(), z, 1);
+			for (siz i = 0; i < z; ++i)
+				v1[i] *= v2[i];
+			cld::fft(v1.begin(), z, -1);
+			u64 tmp = 0;
+			for (siz i = 0, zo = (z1 + z2) << 1; i < zo; ) {
+				tmp += (u64) (v1[i++].a + 0.5);
+				tmp += (u64) (v1[i++].a + 0.5) << 16;
+				*(o++) = (u32) tmp;
+				tmp >>= 32;
+			}
+			return wrapv(w, z1 + z2);
+		}
+		
+		static siz mul_fft_8(ivu32 o, civu32 h1, siz z1, civu32 h2, siz z2) {
+			wrapr(h1, z1);
+			wrapr(h2, z2);
+			ivu32 w = o;
+			siz z = 1;
+			while (z < z1 || z < z2)
+				z <<= 1;
+			z <<= 3;
+			vector<cld> v1(z), v2(z);
+			for (siz i = 0, j = 0; i < z1; ++i) {
+				u32 tmp = h1[i];
+				v1[j++] = tmp & 0xFF;
+				tmp >>= 8;
+				v1[j++] = tmp & 0xFF;
+				tmp >>= 8;
+				v1[j++] = tmp & 0xFF;
+				tmp >>= 8;
+				v1[j++] = tmp;
+			}
+			for (siz i = 0, j = 0; i < z2; ++i) {
+				u32 tmp = h2[i];
+				v2[j++] = tmp & 0xFF;
+				tmp >>= 8;
+				v2[j++] = tmp & 0xFF;
+				tmp >>= 8;
+				v2[j++] = tmp & 0xFF;
+				tmp >>= 8;
+				v2[j++] = tmp;
+			}
+			cld::fft(v1.begin(), z, 1);
+			cld::fft(v2.begin(), z, 1);
+			for (siz i = 0; i < z; ++i)
+				v1[i] *= v2[i];
+			cld::fft(v1.begin(), z, -1);
+			u64 tmp = 0;
+			for (siz i = 0, zo = (z1 + z2) << 2; i < zo; ) {
+				tmp += (u64) (v1[i++].a + 0.5);
+				tmp += (u64) (v1[i++].a + 0.5) << 8;
+				tmp += (u64) (v1[i++].a + 0.5) << 16;
+				tmp += (u64) (v1[i++].a + 0.5) << 24;
 				*(o++) = (u32) tmp;
 				tmp >>= 32;
 			}
@@ -331,7 +414,8 @@ typedef vio::vcomplex<long double> vc;
 #include <cstdlib>
 #include <ctime>
 
-#define DECI(z, a, b) vt v##z(a, b); tt t##z(a, b);
+#define DECIR(z, a, b) vt v##z(a, b); tt t##z(a, b);
+#define DECIV(z, a) vt v##z(a); tt t##z(a);
 
 inline double dur(const clock_t fr, const clock_t to) {
 	return (double) (to - fr) / CLOCKS_PER_SEC;
@@ -373,8 +457,16 @@ int mainFFT() {
 int mainCALC() {
 	int m, n;
 	std::scanf("%d%d", &m, &n);
-	DECI(a, m, 0xFFFF);
-	DECI(b, n, 0xFFFF);
+	vt::vu32 v1(m);
+	vt::vu32 v2(n);
+	for (vt::vu32::iterator i = v1.begin(); i != v1.end(); ++i)
+		*i = 0xFFFFFFFF;//(rand() & 1 ) ? 0xFFFFFFFF : 0x01234567;//(vt::u32) (rand() * rand() + rand());
+	for (vt::vu32::iterator i = v2.begin(); i != v2.end(); ++i)
+		*i = 0xFFFFFFFF;//(rand() & 1 ) ? 0xFFFFFFFF : 0x01234567;//(vt::u32) (rand() * rand() + rand());
+	DECIV(a, v1);
+	DECIV(b, v2);
+	//DECIR(a, m, 0xFFFF);
+	//DECIR(b, n, 0xFFFF);
 	//vt a(3, 0x10000100);
 	//vt b(2, 0xFDEEEFFE);
 	//a.print("a");
