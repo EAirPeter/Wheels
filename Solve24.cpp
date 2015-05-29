@@ -78,16 +78,16 @@ private:
 				auto e1 = s.top();
 				s.pop();
 				std::string u;
-				if (p[e1.first] < p[e])
+				if (e1.first < 0 && p[e1.first] < p[e])
 					u += '(';
 				u += e1.second;
-				if (p[e1.first] < p[e])
+				if (e1.first < 0 && p[e1.first] < p[e])
 					u += ')';
 				u += OPR[e + 4];
-				if (p[e2.first] < p[e] || (e == DIV && e2.first < 0) || (e == SUB && e2.first == ADD))
+				if (e2.first < 0 && (p[e2.first] < p[e] || (e == DIV && e2.first < 0) || (e == SUB && e2.first == ADD)))
 					u += '(';
 				u += e2.second;
-				if (p[e2.first] < p[e] || (e == DIV && e2.first < 0) || (e == SUB && e2.first == ADD))
+				if (e2.first < 0 && (p[e2.first] < p[e] || (e == DIV && e2.first < 0) || (e == SUB && e2.first == ADD)))
 					u += ')';
 				s.push(std::make_pair(e, u));
 			}
