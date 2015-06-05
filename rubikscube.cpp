@@ -84,7 +84,7 @@ public:
 				data[i][j] = cube[i][j];
 		}
 	}
-	
+
 	std::string solve() {
 		sol.clear();
 		view = "F0";
@@ -108,8 +108,9 @@ public:
 		//1.3
 		while (col(F) != get(F, 4))
 			rotCW(D, true);
+
 		change("F2");
-		
+
 		//2.1
 		for (int i = 0; i < 4; ++i) {
 			View v = view;
@@ -119,7 +120,25 @@ public:
 		}
 
 		//3.1
-		sol31();
+		{
+			View v = view;
+			sol31();
+			view = v;
+		}
+
+		//3.2
+		{
+			View v = view;
+			sol32();
+			view = v;
+		}
+
+		//3.3
+		{
+			View v = view;
+			sol33();
+			view = v;
+		}
 
 		return getString();
 	}
@@ -260,7 +279,7 @@ private:
 		throw "FAILED: sol12";
 	}
 
-	void sol2a() {
+	void sol21a() {
 		rotCW(R);
 		rotCC(U);
 		rotCC(R);
@@ -270,7 +289,7 @@ private:
 		rotCW(F);
 	}
 
-	void sol2b() {
+	void sol21b() {
 		rotCC(F);
 		rotCW(U);
 		rotCW(F);
@@ -288,9 +307,9 @@ private:
 		View v = view;
 		for (int i = 0; i < 4; ++i) {
 			if (m1(get(F, 5), get(R, 3), r, f)) {
-				sol2a();
+				sol21a();
 				rotCC(U);
-				sol2b();
+				sol21b();
 				break;
 			}
 			change("R0");
@@ -298,15 +317,15 @@ private:
 		view = v;
 		for (int i = 0; i < 4; ++i) {
 			if (m0(get(L, 1), get(U, 3), f, r))
-				return sol2a();
+				return sol21a();
 			if (m0(get(U, 1), get(B, 1), f, r))
-				return sol2b();
+				return sol21b();
 			rotCW(U);
 		}
 		throw "FAILED: sol21";
 	}
 
-	void sol3a() {
+	void sol31a() {
 		rotCC(F);
 		rotCC(U);
 		rotCC(L);
@@ -317,12 +336,158 @@ private:
 
 	void sol31() {
 		char u = col(U);
+		if (get(U, 4) == u && m3(get(U, 1), get(U, 3), get(U, 5), get(U, 7), u))
+			return;
+		if (get(U, 4) == u && m2(get(U, 1), get(U, 7), u) && m2(get(U, 3), get(U, 5), u))
+			sol31a();
 		if (m3(get(U, 3), get(U, 4), get(U, 5), u) && m2(get(U, 1), get(U, 7), u))
 			change("R0");
 		if (m3(get(U, 1), get(U, 4), get(U, 7), u) && m2(get(U, 3), get(U, 5), u))
-			sol3a();
+			sol31a();
 		for (int i = 0; i < 4; ++i) {
+			if (m3(get(U, 1), get(U, 4), get(U, 5), u) && m2(get(U, 3), get(U, 7), u)) {
+				sol31a();
+				return;
+			}
+			change("R0");
+		}
+		throw "FAILED: sol31";
+	}
 
+	void sol32a() {
+		rotCW(L);
+		rotCC(R);
+		rotCC(U);
+		rotCW(R);
+		rotCW(U);
+		rotCC(L);
+		rotCC(U);
+		rotCC(R);
+		rotCW(U);
+		rotCW(R);
+	}
+
+	void sol32b() {
+		rotCC(R);
+		rotCW(L);
+		rotCW(U);
+		rotCC(L);
+		rotCC(U);
+		rotCW(R);
+		rotCW(U);
+		rotCW(L);
+		rotCC(U);
+		rotCC(L);
+	}
+
+	void sol32() {
+		char u = col(U);
+		char f = col(F);
+		char l = col(L);
+		char r = col(R);
+		char b = col(B);
+		for (int i = 0; i < 4; ++i) {
+			if (m1(get(U, 2), get(R, 2), get(B, 0), u, r, b))
+				break;
+			change("R0");
+		}
+		bool p0 = m1(get(U, 0), get(L, 0), get(B, 2), u, l, b);
+		bool p6 = m1(get(U, 6), get(F, 0), get(L, 2), u, f, l);
+		bool p8 = m1(get(U, 8), get(F, 2), get(R, 0), u, f, r);
+		if (p0 && p6 && p8)
+			return;
+		if (p0 && !p6 && !p8) {
+			change("L0");
+			sol32a();
+			return;
+		}
+		if (!p0 && !p6 && p8) {
+			change("B0");
+			sol32a();
+			return;
+		}
+		if (!p0 && p6 && !p8) {
+			sol32a();
+			change("R0");
+			sol32b();
+			return;
+		}
+		if (m1(get(U, 0), get(L, 0), get(B, 2), u, f, l) && m1(get(U, 6), get(F, 0), get(L, 2), u, f, r) && m1(get(U, 8), get(F, 2), get(R, 0), u, l, b)) {
+			sol32a();
+			return;
+		}
+		if (m1(get(U, 0), get(L, 0), get(B, 2), u, f, r) && m1(get(U, 6), get(F, 0), get(L, 2), u, l, b) && m1(get(U, 8), get(F, 2), get(R, 0), u, f, l)) {
+			sol32a();
+			return;
+		}
+
+		throw "FAILED: sol32";
+	}
+
+	void sol33a() {
+		rotCW(L);
+		rotCW(U);
+		rotCC(L);
+		rotCW(U);
+		rotCW(L);
+		rotDB(U);
+		rotCC(L);
+	}
+
+	void sol33b() {
+		rotCC(F);
+		rotCC(U);
+		rotCW(F);
+		rotCC(U);
+		rotCC(F);
+		rotDB(U);
+		rotCW(F);
+	}
+
+	void sol33() {
+		char u = col(U);
+		if (m2(get(U, 0), get(U, 2), u) && m2(get(U, 6), get(U, 8), u)) {
+			for (int i = 0; i < 4; ++i) {
+				if (m3(get(F, 0), get(F, 2), u))
+					break;
+				change("R0");
+			}
+			if (m3(get(B, 0), get(B, 2), u)) {
+				sol33b();
+				sol33b();
+				return;
+			}
+			if (m3(get(L, 0), get(R, 2), u)) {
+				change("R0");
+				sol33b();
+				change("L0");
+				sol33b();
+				return;
+			}
+			throw "FAILED: sol331";
+		}
+		for (int i = 0; i < 4; ++i) {
+			if (get(U, 2) == u && m2(get(U, 0), get(U, 6), get(U, 8), u)) {
+				if (m3(get(F, 2), get(L, 2), get(B, 2), u)) {
+					sol33a();
+					return;
+				}
+				if (m3(get(F, 0), get(F, 0), get(R, 0))) {
+					sol33b();
+					return;
+				}
+				throw "FAILED: sol331"
+			}
+			change("R0");
+		}
+		if (m2(get(U, 0), get(U, 6), get(U, 8), u)) {
+
+			throw "FAILED: sol332";
+		}
+		for (int i = 0; i < 4; ++i) {
+			if (m2(get(U, 2), get(U, 6), u) ) {
+			}
+			change("R0");
 		}
 	}
 
@@ -338,12 +503,34 @@ private:
 		return (a0 == b0 && a1 == b1) || (a0 == b1 && a1 == b0);
 	}
 
+	bool m1(const char a0, const char a1, const char a2, const char b0, const char b1, const char b2) {
+		return
+			(a0 == b0 && a1 == b1 && a2 == b2) ||
+			(a0 == b0 && a1 == b2 && a2 == b1) ||
+			(a0 == b1 && a1 == b0 && a2 == b2) ||
+			(a0 == b1 && a1 == b2 && a2 == b0) ||
+			(a0 == b2 && a1 == b0 && a2 == b1) ||
+			(a0 == b2 && a1 == b1 && a2 == b0);
+	}
+
 	bool m2(const char c0, const char c1, const char d) {
 		return c0 != d && c1 != d;
 	}
 
+	bool m2(const char c0, const char c1, const char c2, const char d) {
+		return c0 != d && c1 != d && c2 == d;
+	}
+
+	bool m3(const char c0, const char c1, const char d) {
+		return c0 == d && c1 == d;
+	}
+
 	bool m3(const char c0, const char c1, const char c2, const char d) {
 		return c0 == d && c1 == d && c2 == d;
+	}
+
+	bool m3(const char c0, const char c1, const char c2, const char c3, const char d) {
+		return c0 == d && c1 == d && c2 == d && c3 == d;
 	}
 
 private:
@@ -404,10 +591,6 @@ private:
 			);
 	}
 
-	// A0 A1 A2    D0 D1 D2
-	// B0 B1 B2    A0 A1 A2
-	// C0 C1 C2    B0 B1 B2
-	// D0 D1 D2    C0 C1 C2
 	void rotPatEdge(char &a0, char &a1, char &a2, char &b0, char &b1, char &b2, char &c0, char &c1, char &c2, char &d0, char &d1, char &d2) {
 		char t0 = a0, t1 = a1, t2 = a2;
 		a0 = d0, a1 = d1, a2 = d2;
@@ -416,9 +599,6 @@ private:
 		b0 = t0, b1 = t1, b2 = t2;
 	}
 
-	// 012    630
-	// 345 -> 741
-	// 678    852
 	void rotPatCW(char &c0, char &c1, char &c2, char &c3, char &c4, char &c5, char &c6, char &c7, char &c8) {
 		char t = c0;
 		c0 = c6;
@@ -431,13 +611,11 @@ private:
 		c7 = c5;
 		c5 = t;
 	}
+
 	void rotPatCW(const Face face) {
 		rotPatCW(data[face][0], data[face][1], data[face][2], data[face][3], data[face][4], data[face][5], data[face][6], data[face][7], data[face][8]);
 	}
 
-	// 012    258
-	// 345 -> 147
-	// 678    036
 	void rotPatCC(char &c0, char &c1, char &c2, char &c3, char &c4, char &c5, char &c6, char &c7, char &c8) {
 		char t = c0;
 		c0 = c2;
@@ -450,6 +628,7 @@ private:
 		c7 = c3;
 		c3 = t;
 	}
+
 	void rotPatCC(const Face face) {
 		rotPatCC(data[face][0], data[face][1], data[face][2], data[face][3], data[face][4], data[face][5], data[face][6], data[face][7], data[face][8]);
 	}
@@ -459,7 +638,7 @@ private:
 		View v = curViews()[face];
 		return data[v.face][ROTA[v.rota][i]];
 	}
-	
+
 	char col(const Face face) const {
 		return colo[curViews()[face].face];
 	}
